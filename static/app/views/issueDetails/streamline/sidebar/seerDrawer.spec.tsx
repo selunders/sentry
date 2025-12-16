@@ -148,6 +148,15 @@ describe('SeerDrawer', () => {
       },
     });
     MockApiClient.addMockResponse({
+      url: `/organizations/${mockProject.organization.slug}/seer/onboarding-check/`,
+      body: {
+        hasSupportedScmIntegration: false,
+        isAutofixEnabled: false,
+        isCodeReviewEnabled: false,
+        isSeerConfigured: false,
+      },
+    });
+    MockApiClient.addMockResponse({
       url: `/organizations/${mockProject.organization.slug}/integrations/coding-agents/`,
       body: {
         integrations: [],
@@ -720,7 +729,7 @@ describe('SeerDrawer', () => {
     );
 
     expect(
-      await screen.findByText('Hand Off to Cursor Background Agents')
+      await screen.findByText('Hand Off to Cursor Cloud Agents')
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', {name: 'Set Seer to hand off to Cursor'})
@@ -801,8 +810,6 @@ describe('SeerDrawer', () => {
     );
 
     // Should not show the step since it was skipped
-    expect(
-      screen.queryByText('Hand Off to Cursor Background Agents')
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Hand Off to Cursor Cloud Agents')).not.toBeInTheDocument();
   });
 });

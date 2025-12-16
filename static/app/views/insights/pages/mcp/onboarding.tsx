@@ -217,11 +217,13 @@ export function Onboarding() {
       label: t('Integration'),
       items: isPythonPlatform
         ? [
-            {label: 'FastMCP', value: 'mcp_fastmcp'},
-            {label: 'Low-level', value: 'mcp_lowlevel'},
-            {label: 'Manual', value: 'manual'},
+            {label: 'FastMCP / MCP SDK', value: 'mcp_sdk'},
+            {label: 'Other', value: 'manual'},
           ]
-        : [{label: 'MCP SDK', value: 'mcp_sdk'}],
+        : [
+            {label: 'MCP SDK', value: 'mcp_sdk'},
+            {label: 'Other', value: 'manual'},
+          ],
     },
   };
 
@@ -388,7 +390,7 @@ const HeaderWrapper = styled('div')`
   display: flex;
   justify-content: space-between;
   gap: $${p => p.theme.space['2xl']};
-  border-radius: ${p => p.theme.borderRadius};
+  border-radius: ${p => p.theme.radius.md};
   padding: ${p => p.theme.space['3xl']};
 `;
 

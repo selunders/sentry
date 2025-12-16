@@ -193,8 +193,7 @@ sentry_sdk.init(
     # Add data like inputs and responses to/from LLMs and tools;
     # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
     send_default_pii=True,
-    # Disable OpenAI integration for correct token accounting
-    disabled_integrations=[OpenAIIntegration()],
+
 )`,
         },
         {
@@ -234,8 +233,6 @@ sentry_sdk.init(
     # Add data like inputs and responses to/from LLMs and tools;
     # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
     send_default_pii=True,
-    # Disable OpenAI integration for correct token accounting
-    disabled_integrations=[OpenAIIntegration()],
 )`,
         },
         {
@@ -279,8 +276,6 @@ sentry_sdk.init(
     integrations=[
         LiteLLMIntegration(),
     ],
-    # Disable OpenAI integration for correct token accounting
-    disabled_integrations=[OpenAIIntegration()],
 )`,
         },
         {
@@ -297,21 +292,28 @@ sentry_sdk.init(
       content: [
         {
           type: 'text',
-          text: tct(
-            'If you are not using a supported SDK integration, you can instrument your AI calls manually. See [link:manual instrumentation docs] for details.',
-            {
-              link: (
-                <ExternalLink href="https://docs.sentry.io/platforms/python/tracing/instrumentation/custom-instrumentation/ai-agents-module/" />
-              ),
-            }
-          ),
+          text: t('Initialize the Sentry SDK in the entry point of your application.'),
         },
         {
           type: 'code',
           language: 'python',
           code: `import sentry_sdk
 
-sentry_sdk.init(dsn="${params.dsn.public}", traces_sample_rate=1.0)`,
+sentry_sdk.init(
+    dsn="${params.dsn.public}",
+    traces_sample_rate=1.0,
+)`,
+        },
+        {
+          type: 'text',
+          text: tct(
+            'Then follow the [link:manual instrumentation guide] to instrument your AI calls.',
+            {
+              link: (
+                <ExternalLink href="https://docs.sentry.io/platforms/python/tracing/instrumentation/custom-instrumentation/ai-agents-module/" />
+              ),
+            }
+          ),
         },
       ],
     };
@@ -349,8 +351,6 @@ sentry_sdk.init(
     integrations=[
         PydanticAIIntegration(),
     ],
-    # Disable OpenAI integration for correct token accounting
-    disabled_integrations=[OpenAIIntegration()],
 )`,
         },
         {
@@ -676,32 +676,8 @@ print(result.data)
         {
           type: 'text',
           text: t(
-            'Verify that agent monitoring is working correctly by running your manually instrumented code:'
+            'Verify that agent monitoring is working correctly by running your manually instrumented.'
           ),
-        },
-        {
-          type: 'code',
-          language: 'python',
-          code: `
-import json
-import sentry_sdk
-
-# Invoke Agent span
-with sentry_sdk.start_span(op="gen_ai.invoke_agent", name="invoke_agent Weather Agent") as span:
-    span.set_data("gen_ai.operation.name", "invoke_agent")
-    span.set_data("gen_ai.system", "openai")
-    span.set_data("gen_ai.request.model", "o3-mini")
-    span.set_data("gen_ai.agent.name", "Weather Agent")
-    span.set_data("gen_ai.response.text", json.dumps(["Hello World"]))
-
-# AI Client span
-with sentry_sdk.start_span(op="gen_ai.chat", name="chat o3-mini") as span:
-    span.set_data("gen_ai.operation.name", "chat")
-    span.set_data("gen_ai.system", "openai")
-    span.set_data("gen_ai.request.model", "o3-mini")
-    span.set_data("gen_ai.request.message", json.dumps([{"role": "user", "content": "Tell me a joke"}]))
-    span.set_data("gen_ai.response.text", json.dumps(["joke..."]))
-`,
         },
       ],
     };

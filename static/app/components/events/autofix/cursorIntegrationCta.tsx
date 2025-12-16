@@ -1,6 +1,5 @@
 import {useCallback} from 'react';
 import styled from '@emotion/styled';
-import {useQueryClient} from '@tanstack/react-query';
 
 import {Flex} from '@sentry/scraps/layout';
 import {Heading, Text} from '@sentry/scraps/text';
@@ -8,17 +7,14 @@ import {Heading, Text} from '@sentry/scraps/text';
 import {Button} from 'sentry/components/core/button/button';
 import {LinkButton} from 'sentry/components/core/button/linkButton';
 import {ExternalLink, Link} from 'sentry/components/core/link';
-import {
-  makeProjectSeerPreferencesQueryKey,
-  useProjectSeerPreferences,
-} from 'sentry/components/events/autofix/preferences/hooks/useProjectSeerPreferences';
-import {useUpdateProjectAutomation} from 'sentry/components/events/autofix/preferences/hooks/useUpdateProjectAutomation';
+import {useProjectSeerPreferences} from 'sentry/components/events/autofix/preferences/hooks/useProjectSeerPreferences';
 import {useUpdateProjectSeerPreferences} from 'sentry/components/events/autofix/preferences/hooks/useUpdateProjectSeerPreferences';
 import {useCodingAgentIntegrations} from 'sentry/components/events/autofix/useAutofix';
 import Placeholder from 'sentry/components/placeholder';
 import {t, tct} from 'sentry/locale';
 import {PluginIcon} from 'sentry/plugins/components/pluginIcon';
 import type {Project} from 'sentry/types/project';
+import {useUpdateProject} from 'sentry/utils/project/useUpdateProject';
 import useOrganization from 'sentry/utils/useOrganization';
 
 interface CursorIntegrationCtaProps {
@@ -27,7 +23,6 @@ interface CursorIntegrationCtaProps {
 
 export function CursorIntegrationCta({project}: CursorIntegrationCtaProps) {
   const organization = useOrganization();
-  const queryClient = useQueryClient();
 
   const {preference, isFetching: isLoadingPreferences} =
     useProjectSeerPreferences(project);
@@ -35,7 +30,7 @@ export function CursorIntegrationCta({project}: CursorIntegrationCtaProps) {
     useUpdateProjectSeerPreferences(project);
   const {data: codingAgentIntegrations, isLoading: isLoadingIntegrations} =
     useCodingAgentIntegrations();
-  const {mutateAsync: updateProjectAutomation} = useUpdateProjectAutomation(project);
+  const {mutateAsync: updateProjectAutomation} = useUpdateProject(project);
 
   const cursorIntegration = codingAgentIntegrations?.integrations.find(
     integration => integration.provider === 'cursor'
@@ -64,37 +59,22 @@ export function CursorIntegrationCta({project}: CursorIntegrationCtaProps) {
       });
     }
 
-    updateProjectSeerPreferences(
-      {
-        repositories: preference?.repositories || [],
-        automated_run_stopping_point: 'root_cause',
-        automation_handoff: {
-          handoff_point: 'root_cause',
-          target: 'cursor_background_agent',
-          integration_id: parseInt(cursorIntegration.id, 10),
-        },
+    updateProjectSeerPreferences({
+      repositories: preference?.repositories || [],
+      automated_run_stopping_point: 'root_cause',
+      automation_handoff: {
+        handoff_point: 'root_cause',
+        target: 'cursor_background_agent',
+        integration_id: parseInt(cursorIntegration.id, 10),
       },
-      {
-        onSuccess: () => {
-          // Invalidate queries to update the dropdown in the settings page
-          queryClient.invalidateQueries({
-            queryKey: [
-              makeProjectSeerPreferencesQueryKey(organization.slug, project.slug),
-            ],
-          });
-        },
-      }
-    );
+    });
   }, [
-    project.slug,
     project.seerScannerAutomation,
     project.autofixAutomationTuning,
-    organization.slug,
     updateProjectSeerPreferences,
     updateProjectAutomation,
     preference?.repositories,
     cursorIntegration,
-    queryClient,
   ]);
 
   if (!hasCursorIntegrationFeatureFlag) {
@@ -121,16 +101,20 @@ export function CursorIntegrationCta({project}: CursorIntegrationCtaProps) {
           </Heading>
           <Text>
             {tct(
-              'Connect Cursor to automatically hand off Seer root cause analysis to Cursor Background Agents for seamless code fixes. [docsLink:Read the docs] to learn more.',
+              'Connect Cursor to automatically hand off Seer root cause analysis to Cursor Cloud Agents for seamless code fixes. [docsLink:Read the docs] to learn more.',
               {
                 docsLink: (
-                  <ExternalLink href="https://docs.sentry.io/integrations/cursor/" />
+                  <ExternalLink href="https://docs.sentry.io/organization/integrations/cursor/" />
                 ),
               }
             )}
           </Text>
           <div>
-            <LinkButton to="/settings/integrations/cursor/" priority="default" size="sm">
+            <LinkButton
+              href="/settings/integrations/cursor/"
+              priority="default"
+              size="sm"
+            >
               {t('Install Cursor Integration')}
             </LinkButton>
           </div>
@@ -151,13 +135,13 @@ export function CursorIntegrationCta({project}: CursorIntegrationCtaProps) {
           </Heading>
           <Text>
             {tct(
-              'You have the Cursor integration installed. Turn on Seer automation and set up hand off to trigger Cursor Background Agents during automation. [seerProjectSettings:Configure in Seer project settings] or [docsLink:read the docs] to learn more.',
+              'You have the Cursor integration installed. Turn on Seer automation and set up hand off to trigger Cursor Cloud Agents during automation. [seerProjectSettings:Configure in Seer project settings] or [docsLink:read the docs] to learn more.',
               {
                 seerProjectSettings: (
                   <Link to={`/settings/projects/${project.slug}/seer/`} />
                 ),
                 docsLink: (
-                  <ExternalLink href="https://docs.sentry.io/integrations/cursor/" />
+                  <ExternalLink href="https://docs.sentry.io/organization/integrations/cursor/" />
                 ),
               }
             )}
@@ -183,10 +167,10 @@ export function CursorIntegrationCta({project}: CursorIntegrationCtaProps) {
         </Heading>
         <Text>
           {tct(
-            'Cursor handoff is active. During automation runs, Seer will automatically trigger Cursor Background Agents. [docsLink:Read the docs] to learn more.',
+            'Cursor handoff is active. During automation runs, Seer will automatically trigger Cursor Cloud Agents. [docsLink:Read the docs] to learn more.',
             {
               docsLink: (
-                <ExternalLink href="https://docs.sentry.io/integrations/cursor/" />
+                <ExternalLink href="https://docs.sentry.io/organization/integrations/cursor/" />
               ),
             }
           )}
@@ -200,7 +184,7 @@ const Card = styled('div')`
   position: relative;
   padding: ${p => p.theme.space.xl};
   border: 1px solid ${p => p.theme.border};
-  border-radius: ${p => p.theme.borderRadius};
+  border-radius: ${p => p.theme.radius.md};
   margin-top: ${p => p.theme.space['2xl']};
   margin-bottom: ${p => p.theme.space['2xl']};
 `;

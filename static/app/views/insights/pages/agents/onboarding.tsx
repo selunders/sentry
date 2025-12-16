@@ -38,7 +38,20 @@ import useOrganization from 'sentry/utils/useOrganization';
 import usePageFilters from 'sentry/utils/usePageFilters';
 import useProjects from 'sentry/utils/useProjects';
 import {useSpans} from 'sentry/views/insights/common/queries/useDiscover';
+import {getHasAiSpansFilter} from 'sentry/views/insights/pages/agents/utils/query';
 import {Referrer} from 'sentry/views/insights/pages/agents/utils/referrers';
+
+// Full-stack JS frameworks that support Vercel AI SDK (they have server-side capabilities)
+const fullStackJsPlatforms = [
+  'javascript-astro',
+  'javascript-nextjs',
+  'javascript-nuxt',
+  'javascript-react-router',
+  'javascript-remix',
+  'javascript-solidstart',
+  'javascript-sveltekit',
+  'javascript-tanstackstart-react',
+];
 
 function useOnboardingProject() {
   const {projects} = useProjects();
@@ -63,7 +76,7 @@ function useAiSpanWaiter(project: Project) {
 
   const request = useSpans(
     {
-      search: 'span.op:"gen_ai.*"',
+      search: getHasAiSpansFilter(),
       fields: ['id'],
       limit: 1,
       enabled: !!project,
@@ -210,6 +223,10 @@ export function Onboarding() {
 
   // Local integration options for Agent Monitoring only
   const isPythonPlatform = (project?.platform ?? '').startsWith('python');
+  const isNodePlatform = (project?.platform ?? '').startsWith('node');
+  const isFullStackJsPlatform = fullStackJsPlatforms.includes(project?.platform ?? '');
+  const hasVercelAI = isNodePlatform || isFullStackJsPlatform;
+
   const integrationOptions = {
     integration: {
       label: t('Integration'),
@@ -223,14 +240,16 @@ export function Onboarding() {
             {label: 'LangGraph', value: 'langgraph'},
             {label: 'LiteLLM', value: 'litellm'},
             {label: 'Pydantic AI', value: 'pydantic_ai'},
-            {label: 'Manual', value: 'manual'},
+            {label: 'Other', value: 'manual'},
           ]
         : [
-            {label: 'Vercel AI SDK', value: 'vercel_ai'},
+            ...(hasVercelAI ? [{label: 'Vercel AI SDK', value: 'vercel_ai'}] : []),
             {label: 'OpenAI SDK', value: 'openai'},
             {label: 'Anthropic SDK', value: 'anthropic'},
             {label: 'Google Gen AI SDK', value: 'google_genai'},
-            {label: 'Manual', value: 'manual'},
+            {label: 'LangChain', value: 'langchain'},
+            {label: 'LangGraph', value: 'langgraph'},
+            {label: 'Other', value: 'manual'},
           ],
     },
   };
@@ -404,7 +423,7 @@ const HeaderWrapper = styled('div')`
   display: flex;
   justify-content: space-between;
   gap: ${p => p.theme.space['2xl']};
-  border-radius: ${p => p.theme.borderRadius};
+  border-radius: ${p => p.theme.radius.md};
   padding: ${p => p.theme.space['3xl']};
 `;
 
@@ -453,8 +472,8 @@ const Body = styled('div')`
 const Arcade = styled('iframe')`
   width: 750px;
   max-width: 100%;
+  min-height: 370px;
   margin-top: ${p => p.theme.space['2xl']};
-  height: 522px;
   border: 0;
 `;
 

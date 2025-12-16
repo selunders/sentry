@@ -85,9 +85,12 @@ export function getInstallCodeBlock(
 
 function getImport(
   packageName: `@sentry/${string}`,
-  defaultMode?: 'esm' | 'cjs'
+  importMode?: 'esm' | 'cjs' | 'esm-only'
 ): string[] {
-  return defaultMode === 'esm'
+  if (importMode === 'esm-only') {
+    return [`import * as Sentry from "${packageName}";`];
+  }
+  return importMode === 'esm'
     ? [
         `// Import with \`const Sentry = require("${packageName}");\` if you are using CJS`,
         `import * as Sentry from "${packageName}"`,
@@ -311,8 +314,10 @@ Sentry.profiler.stopProfiler();
 export const getNodeAgentMonitoringOnboarding = ({
   packageName = '@sentry/node',
   configFileName,
+  importMode,
 }: {
   configFileName?: string;
+  importMode?: 'esm' | 'cjs' | 'esm-only';
   packageName?: `@sentry/${string}`;
 } = {}): OnboardingConfig => ({
   install: params => [
@@ -322,7 +327,7 @@ export const getNodeAgentMonitoringOnboarding = ({
         {
           type: 'text',
           text: tct(
-            'To enable agent monitoring, you need to install the Sentry SDK with a minimum version of [code:10.14.0].',
+            'To enable agent monitoring, you need to install the Sentry SDK with a minimum version of [code:10.28.0].',
             {
               code: <code />,
             }
@@ -354,7 +359,7 @@ export const getNodeAgentMonitoringOnboarding = ({
           {
             label: configFileName ? configFileName : 'JavaScript',
             language: 'javascript',
-            code: `${getImport(packageName).join('\n')}
+            code: `${getImport(packageName, importMode).join('\n')}
 
 Sentry.init({
   dsn: "${params.dsn.public}",
@@ -421,7 +426,7 @@ const result = await generateText({
           {
             label: 'JavaScript',
             language: 'javascript',
-            code: `${getImport(packageName).join('\n')}
+            code: `${getImport(packageName, importMode).join('\n')}
 
 Sentry.init({
   dsn: "${params.dsn.public}",
@@ -455,7 +460,7 @@ Sentry.init({
           {
             label: 'JavaScript',
             language: 'javascript',
-            code: `${getImport(packageName).join('\n')}
+            code: `${getImport(packageName, importMode).join('\n')}
 
 Sentry.init({
   dsn: "${params.dsn.public}",
@@ -489,7 +494,7 @@ Sentry.init({
           {
             label: 'JavaScript',
             language: 'javascript',
-            code: `${getImport(packageName).join('\n')}
+            code: `${getImport(packageName, importMode).join('\n')}
 
 Sentry.init({
   dsn: "${params.dsn.public}",
@@ -509,16 +514,12 @@ Sentry.init({
       },
     ];
 
-    const manualContent: ContentBlock[] = [
+    const langchainContent: ContentBlock[] = [
       {
         type: 'text',
         text: tct(
-          'If you are not using a supported SDK integration, you can instrument your AI calls manually. See [link:manual instrumentation docs] for details.',
-          {
-            link: (
-              <ExternalLink href="https://docs.sentry.io/platforms/node/tracing/instrumentation/ai-agents-module/#manual-instrumentation" />
-            ),
-          }
+          'Add the [code:langChainIntegration] to your [code:Sentry.init()] call. This integration automatically instruments LangChain to capture spans for AI operations.',
+          {code: <code />}
         ),
       },
       {
@@ -527,25 +528,90 @@ Sentry.init({
           {
             label: 'JavaScript',
             language: 'javascript',
-            code: `${getImport(packageName).join('\n')}
+            code: `${getImport(packageName, importMode).join('\n')}
 
-// Create a span around your AI call
-await Sentry.startSpan({
-  op: "gen_ai.chat",
-  name: "chat gpt-4o",
-  attributes: {
-    "gen_ai.operation.name": "chat",
-    "gen_ai.request.model": "gpt-4o",
-  }
-}, async (span) => {
-  // Call your AI function here
-  // e.g., await generateText(...)
-
-  // Set further span attributes after the AI call
-  span.setAttribute("gen_ai.response.text", "<Your model's response>");
+Sentry.init({
+  dsn: "${params.dsn.public}",
+  integrations: [
+    // Add the LangChain integration
+    Sentry.langChainIntegration({
+      recordInputs: true,
+      recordOutputs: true,
+    }),
+  ],
+  // Tracing must be enabled for agent monitoring to work
+  tracesSampleRate: 1.0,
+  sendDefaultPii: true,
 });`,
           },
         ],
+      },
+    ];
+
+    const langgraphContent: ContentBlock[] = [
+      {
+        type: 'text',
+        text: tct(
+          'Add the [code:langChainIntegration] to your [code:Sentry.init()] call. This integration automatically instruments LangGraph to capture spans for AI operations.',
+          {code: <code />}
+        ),
+      },
+      {
+        type: 'code',
+        tabs: [
+          {
+            label: 'JavaScript',
+            language: 'javascript',
+            code: `${getImport(packageName, importMode).join('\n')}
+
+Sentry.init({
+  dsn: "${params.dsn.public}",
+  integrations: [
+    // Add the LangChain integration (also works for LangGraph)
+    Sentry.langChainIntegration({
+      recordInputs: true,
+      recordOutputs: true,
+    }),
+  ],
+  // Tracing must be enabled for agent monitoring to work
+  tracesSampleRate: 1.0,
+  sendDefaultPii: true,
+});`,
+          },
+        ],
+      },
+    ];
+
+    const manualContent: ContentBlock[] = [
+      {
+        type: 'text',
+        text: t('Initialize the Sentry SDK in the entry point of your application.'),
+      },
+      {
+        type: 'code',
+        tabs: [
+          {
+            label: 'JavaScript',
+            language: 'javascript',
+            code: `${getImport(packageName, importMode).join('\n')}
+
+Sentry.init({
+  dsn: "${params.dsn.public}",
+  tracesSampleRate: 1.0,
+});`,
+          },
+        ],
+      },
+      {
+        type: 'text',
+        text: tct(
+          'Then follow the [link:manual instrumentation guide] to instrument your AI calls.',
+          {
+            link: (
+              <ExternalLink href="https://docs.sentry.io/platforms/node/tracing/instrumentation/ai-agents-module/#manual-instrumentation" />
+            ),
+          }
+        ),
       },
     ];
 
@@ -562,6 +628,12 @@ await Sentry.startSpan({
     }
     if (selected === 'google_genai') {
       content = googleGenAIContent;
+    }
+    if (selected === 'langchain') {
+      content = langchainContent;
+    }
+    if (selected === 'langgraph') {
+      content = langgraphContent;
     }
     return [
       {
@@ -638,6 +710,63 @@ const response = await ai.models.generateContent({
         ],
       });
     }
+    if (selected === 'langchain') {
+      content.push({
+        type: 'code',
+        tabs: [
+          {
+            label: 'JavaScript',
+            language: 'javascript',
+            code: `
+const { ChatOpenAI } = require("@langchain/openai");
+const { HumanMessage, SystemMessage } = require("@langchain/core/messages");
+
+const chatModel = new ChatOpenAI({
+  modelName: "gpt-4o",
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const messages = [
+  new SystemMessage("You are a helpful assistant."),
+  new HumanMessage("Tell me a joke"),
+];
+
+const response = await chatModel.invoke(messages);
+const text = response.content;`,
+          },
+        ],
+      });
+    }
+    if (selected === 'langgraph') {
+      content.push({
+        type: 'code',
+        tabs: [
+          {
+            label: 'JavaScript',
+            language: 'javascript',
+            code: `
+const { ChatOpenAI } = require("@langchain/openai");
+const { createReactAgent } = require("@langchain/langgraph/prebuilt");
+const { HumanMessage, SystemMessage } = require("@langchain/core/messages");
+
+const llm = new ChatOpenAI({
+  modelName: "gpt-4o",
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const agent = createReactAgent({ llm, tools: [] });
+
+const result = await agent.invoke({
+  messages: [new SystemMessage("You are a helpful assistant."), new HumanMessage("Tell me a joke")],
+});
+
+const messages = result.messages;
+const lastMessage = messages[messages.length - 1];
+const text = lastMessage.content;`,
+          },
+        ],
+      });
+    }
     return [
       {
         type: StepType.VERIFY,
@@ -671,24 +800,21 @@ export const getNodeMcpOnboarding = ({
       ],
     },
   ],
-  configure: params => [
-    {
-      type: StepType.CONFIGURE,
-      content: [
-        {
-          type: 'text',
-          text: tct('Initialize the Sentry SDK with [code:Sentry.init()] call.', {
-            code: <code />,
-          }),
-        },
-        {
-          type: 'code',
-          tabs: [
-            {
-              label: 'JavaScript',
-              value: 'javascript',
-              language: 'javascript',
-              code: `${getImport(packageName).join('\n')}
+  configure: params => {
+    const mcpSdkStep: ContentBlock[] = [
+      {
+        type: 'text',
+        text: tct('Initialize the Sentry SDK by calling [code:Sentry.init()]:', {
+          code: <code />,
+        }),
+      },
+      {
+        type: 'code',
+        tabs: [
+          {
+            label: 'JavaScript',
+            language: 'javascript',
+            code: `${getImport(packageName).join('\n')}
 
 Sentry.init({
   dsn: "${params.dsn.public}",
@@ -696,38 +822,79 @@ Sentry.init({
   tracesSampleRate: 1.0,
   sendDefaultPii: true,
 });`,
-            },
-          ],
-        },
-        {
-          type: 'text',
-          text: tct(
-            'Wrap your MCP server in a [code:Sentry.wrapMcpServerWithSentry()] call. This will automatically capture spans for all MCP server interactions.',
-            {
-              code: <code />,
-            }
-          ),
-        },
-        {
-          type: 'code',
-          tabs: [
-            {
-              label: 'JavaScript',
-              value: 'javascript',
-              language: 'javascript',
-              code: `
+          },
+        ],
+      },
+      {
+        type: 'text',
+        text: tct(
+          'Wrap your MCP server in a [code:Sentry.wrapMcpServerWithSentry()] call. This will automatically capture spans for all MCP server interactions.',
+          {
+            code: <code />,
+          }
+        ),
+      },
+      {
+        type: 'code',
+        tabs: [
+          {
+            label: 'JavaScript',
+            language: 'javascript',
+            code: `
 const { McpServer } = require("@modelcontextprotocol/sdk");
 
 const server = Sentry.wrapMcpServerWithSentry(new McpServer({
     name: "my-mcp-server",
     version: "1.0.0",
 }));`,
-            },
-          ],
-        },
-      ],
-    },
-  ],
+          },
+        ],
+      },
+    ];
+
+    const manualStep: ContentBlock[] = [
+      {
+        type: 'text',
+        text: t('Initialize the Sentry SDK in the entry point of your application:'),
+      },
+      {
+        type: 'code',
+        tabs: [
+          {
+            label: 'JavaScript',
+            language: 'javascript',
+            code: `${getImport(packageName).join('\n')}
+
+Sentry.init({
+  dsn: "${params.dsn.public}",
+  tracesSampleRate: 1.0,
+});`,
+          },
+        ],
+      },
+      {
+        type: 'text',
+        text: tct(
+          'Then follow the [link:manual instrumentation guide] to instrument your MCP server.',
+          {
+            link: (
+              <ExternalLink href="https://docs.sentry.io/platforms/node/tracing/instrumentation/custom-instrumentation/mcp-module/#manual-instrumentation" />
+            ),
+          }
+        ),
+      },
+    ];
+
+    const selected = (params.platformOptions as any)?.integration ?? 'mcp_sdk';
+    const content = selected === 'manual' ? manualStep : mcpSdkStep;
+
+    return [
+      {
+        type: StepType.CONFIGURE,
+        content,
+      },
+    ];
+  },
   verify: () => [
     {
       type: StepType.VERIFY,

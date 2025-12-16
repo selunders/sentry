@@ -29,7 +29,6 @@ from sentry.integrations.pipeline import ensure_integration
 from sentry.integrations.services.integration.model import RpcIntegration
 from sentry.integrations.services.integration.service import integration_service
 from sentry.integrations.services.repository.service import repository_service
-from sentry.integrations.source_code_management.commit_context import CommitContextIntegration
 from sentry.integrations.source_code_management.webhook import SCMWebhook
 from sentry.integrations.types import IntegrationProviderSlug
 from sentry.integrations.utils.metrics import IntegrationWebhookEvent, IntegrationWebhookEventType
@@ -39,6 +38,7 @@ from sentry.models.commit import Commit
 from sentry.models.commitauthor import CommitAuthor
 from sentry.models.commitfilechange import CommitFileChange, post_bulk_create
 from sentry.models.organization import Organization
+from sentry.models.organizationcontributors import OrganizationContributors
 from sentry.models.pullrequest import PullRequest
 from sentry.models.repository import Repository
 from sentry.organizations.services.organization.serial import serialize_rpc_organization
@@ -55,6 +55,7 @@ from .integration import GitHubIntegrationProvider
 from .repository import GitHubRepositoryProvider
 from .tasks.codecov_account_unlink import codecov_account_unlink
 from .types import IssueEvenntWebhookActionType
+from .utils import should_create_or_increment_contributor_seat
 
 logger = logging.getLogger("sentry.webhooks")
 
@@ -452,7 +453,7 @@ class PushEventWebhook(GitHubWebhook):
                         date_added=parse_date(commit["timestamp"]).astimezone(timezone.utc),
                     )
 
-                    file_changes = []
+                    file_changes: list[CommitFileChange] = []
 
                     for fname in commit["added"]:
                         languages.add(get_file_language(fname))
@@ -767,13 +768,35 @@ class PullRequestEventWebhook(GitHubWebhook):
                 },
             )
 
-            installation = integration.get_installation(organization_id=organization.id)
-            if (
-                action == "opened"
-                and created
-                and isinstance(installation, CommitContextIntegration)
-            ):
-                installation.queue_open_pr_comment_task_if_needed(pr=pr, organization=organization)
+            if created:
+                # Track AI contributor if eligible
+                contributor, _ = OrganizationContributors.objects.get_or_create(
+                    organization_id=organization.id,
+                    integration_id=repo.integration_id,
+                    external_identifier=user["id"],
+                    defaults={
+                        "alias": user["login"],
+                    },
+                )
+
+                if should_create_or_increment_contributor_seat(organization, repo, contributor):
+                    metrics.incr(
+                        "github.webhook.organization_contributor.should_create",
+                        sample_rate=1.0,
+                        tags={
+                            "organization_id": organization.id,
+                            "repository_id": repo.id,
+                        },
+                    )
+
+                metrics.incr(
+                    "github.webhook.pull_request.created",
+                    sample_rate=1.0,
+                    tags={
+                        "organization_id": organization.id,
+                        "repository_id": repo.id,
+                    },
+                )
 
         except IntegrityError:
             pass

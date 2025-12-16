@@ -4,7 +4,7 @@ import {PlatformIcon} from 'platformicons';
 
 import InteractionStateLayer from 'sentry/components/core/interactionStateLayer';
 import {Flex} from 'sentry/components/core/layout';
-import {Link} from 'sentry/components/core/link';
+import {ExternalLink, Link} from 'sentry/components/core/link';
 import {Text} from 'sentry/components/core/text';
 import {Tooltip} from 'sentry/components/core/tooltip';
 import LoadingIndicator from 'sentry/components/loadingIndicator';
@@ -12,7 +12,7 @@ import Pagination from 'sentry/components/pagination';
 import {SimpleTable} from 'sentry/components/tables/simpleTable';
 import TimeSince from 'sentry/components/timeSince';
 import {IconCheckmark, IconCommit} from 'sentry/icons';
-import {t} from 'sentry/locale';
+import {t, tct} from 'sentry/locale';
 import type {BuildDetailsApiResponse} from 'sentry/views/preprod/types/buildDetailsTypes';
 import {
   formattedPrimaryMetricDownloadSize,
@@ -28,6 +28,7 @@ interface PreprodBuildsTableProps {
   projectSlug: string;
   error?: boolean;
   hasSearchQuery?: boolean;
+  onRowClick?: (build: BuildDetailsApiResponse) => void;
   pageLinks?: string | null;
 }
 
@@ -36,6 +37,7 @@ export function PreprodBuildsTable({
   isLoading,
   error,
   pageLinks,
+  onRowClick,
   organizationSlug,
   projectSlug,
   hasSearchQuery,
@@ -59,7 +61,7 @@ export function PreprodBuildsTable({
 
     return (
       <SimpleTable.Row key={build.id}>
-        <FullRowLink to={linkUrl}>
+        <FullRowLink to={linkUrl} onClick={() => onRowClick?.(build)}>
           <InteractionStateLayer />
           <SimpleTable.RowCell justify="start">
             {build.app_info?.name || build.app_info?.app_id ? (
@@ -170,13 +172,19 @@ export function PreprodBuildsTable({
       <SimpleTable.Empty>
         <Text as="p">
           {hasSearchQuery
-            ? t('No builds found for your search')
-            : t('There are no preprod builds associated with this project.')}
+            ? t('No mobile builds found for your search')
+            : tct('No mobile builds found, see our [link:documentation] for more info.', {
+                link: (
+                  <ExternalLink href="https://docs.sentry.io/product/size-analysis/">
+                    {t('Learn more')}
+                  </ExternalLink>
+                ),
+              })}
         </Text>
       </SimpleTable.Empty>
     );
   } else {
-    tableContent = <Fragment>{builds.map(renderBuildRow)}</Fragment>;
+    tableContent = <Fragment>{builds.map(build => renderBuildRow(build))}</Fragment>;
   }
 
   return (

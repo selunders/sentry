@@ -4,6 +4,10 @@ import type {Location} from 'history';
 
 import * as Layout from 'sentry/components/layouts/thirds';
 import LoadingIndicator from 'sentry/components/loadingIndicator';
+import {
+  ReplayAccess,
+  ReplayAccessFallbackAlert,
+} from 'sentry/components/replays/replayAccess';
 import ReplayTable from 'sentry/components/replays/table/replayTable';
 import {
   ReplayActivityColumn,
@@ -14,6 +18,7 @@ import {
   ReplaySessionColumn,
   ReplaySlowestTransactionColumn,
 } from 'sentry/components/replays/table/replayTableColumns';
+import {usePlaylistQuery} from 'sentry/components/replays/usePlaylistQuery';
 import type {Organization} from 'sentry/types/organization';
 import EventView from 'sentry/utils/discover/eventView';
 import useReplayList from 'sentry/utils/replays/hooks/useReplayList';
@@ -28,6 +33,14 @@ import useReplaysFromTransaction from './useReplaysFromTransaction';
 import useReplaysWithTxData from './useReplaysWithTxData';
 
 function TransactionReplays() {
+  return (
+    <ReplayAccess fallback={<ReplayAccessFallbackAlert />}>
+      <TransactionReplaysContent />
+    </ReplayAccess>
+  );
+}
+
+function TransactionReplaysContent() {
   const {
     eventView: replayIdsEventView,
     organization,
@@ -89,6 +102,7 @@ function ReplaysContent({
   if (!eventView.query) {
     eventView.query = String(location.query.query ?? '');
   }
+  const playlistQuery = usePlaylistQuery('transactionReplays', eventView);
 
   const newLocation = useMemo(
     () => ({query: {}}) as Location<ReplayListLocationQuery>,
@@ -121,6 +135,7 @@ function ReplaysContent({
   return (
     <Layout.Main width="full">
       <ReplayTable
+        query={playlistQuery}
         columns={[
           ReplaySessionColumn,
           ...(hasRoomForColumns ? [ReplaySlowestTransactionColumn] : []),
